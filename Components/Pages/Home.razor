@@ -1,0 +1,329 @@
+@page "/"
+@using GsNetRobo.Data
+@using GsNetRobo.Models
+@using GsNetRobo.Services
+@using Microsoft.EntityFrameworkCore
+@inject ExcelReaderService ExcelReader
+@inject JobQueueService JobQueue
+@inject IDbContextFactory<AppDbContext> DbFactory
+@implements IDisposable
+@rendermode InteractiveServer
+
+<PageTitle>GSNet Robo - Automacao</PageTitle>
+
+<h3 class="mb-4">Automacao GSNet</h3>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <strong>Nova Operacao</strong>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Usuario GSNet</label>
+                    <input type="text" class="form-control" @bind="usuario" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Senha GSNet</label>
+                    <input type="password" class="form-control" @bind="senhaGsnet" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Programa de Saude</label>
+                    <select class="form-select" @bind="programaSaude">
+                        <option value="">-- Selecione --</option>
+                        @foreach (var p in programas)
+                        {
+                            <option value="@p">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Tipo de Operacao</label>
+                    <select class="form-select" @bind="operacao">
+                        @foreach (OperationType op in Enum.GetValues<OperationType>())
+                        {
+                            <option value="@op">@NomeOperacao(op)</option>
+                        }
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Planilha Excel (coluna A = numeros dos documentos)</label>
+                    <InputFile class="form-control" OnChange="OnFileSelected" accept=".xlsx,.xls" />
+                    @if (documentos.Count > 0)
+                    {
+                        <small class="text-muted">@documentos.Count documento(s) encontrado(s)</small>
+                    }
+                </div>
+
+                @if (!string.IsNullOrEmpty(mensagemErro))
+                {
+                    <div class="alert alert-danger">@mensagemErro</div>
+                }
+
+                <button class="btn btn-primary w-100" @onclick="Executar" disabled="@executando">
+                    @if (executando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                        <span>Enviando...</span>
+                    }
+                    else
+                    {
+                        <span>Executar</span>
+                    }
+                </button>
+
+                @if (mensagemSucesso != null)
+                {
+                    <div class="alert alert-success mt-3">@mensagemSucesso</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        @if (jobAtivo != null)
+        {
+            <div class="card mb-3">
+                <div class="card-header">
+                    <strong>Job em Execucao #@jobAtivo.Id</strong>
+                </div>
+                <div class="card-body">
+                    <p><strong>Operacao:</strong> @NomeOperacao(jobAtivo.OperationType)</p>
+                    <p><strong>Programa:</strong> @jobAtivo.ProgramaSaude</p>
+                    <p><strong>Status:</strong>
+                        <span class="badge @BadgeClass(jobAtivo.Status)">@jobAtivo.Status</span>
+                    </p>
+                    <div class="progress mb-2">
+                        <div class="progress-bar" role="progressbar"
+                             style="width: @Progresso()%"
+                             aria-valuenow="@jobAtivo.DocumentosProcessados"
+                             aria-valuemin="0"
+                             aria-valuemax="@jobAtivo.TotalDocumentos">
+                            @jobAtivo.DocumentosProcessados / @jobAtivo.TotalDocumentos
+                        </div>
+                    </div>
+                    @if (jobAtivo.Status == JobStatus.Erro)
+                    {
+                        <div class="alert alert-danger mt-2">@jobAtivo.Erro</div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="card">
+            <div class="card-header">
+                <strong>Ultimos Jobs</strong>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Operacao</th>
+                            <th>Status</th>
+                            <th>Progresso</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var j in ultimosJobs)
+                        {
+                            <tr>
+                                <td>@j.Id</td>
+                                <td>@NomeOperacao(j.OperationType)</td>
+                                <td><span class="badge @BadgeClass(j.Status)">@j.Status</span></td>
+                                <td>@j.DocumentosProcessados/@j.TotalDocumentos</td>
+                            </tr>
+                        }
+                        @if (ultimosJobs.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-center text-muted">Nenhum job ainda</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string usuario = string.Empty;
+    private string senhaGsnet = string.Empty;
+    private string programaSaude = string.Empty;
+    private OperationType operacao = OperationType.Efetivar;
+    private List<string> documentos = new();
+    private bool executando;
+    private string? mensagemErro;
+    private string? mensagemSucesso;
+    private AutomationJob? jobAtivo;
+    private List<AutomationJob> ultimosJobs = new();
+    private Timer? timer;
+
+    private readonly string[] programas =
+    [
+        "CEAF - RE",
+        "CEBAF - DOSE CERTA",
+        "CEBAF - SAÚDE DA MULHER",
+        "CEBAF - OUTROS",
+        "CESAF ",
+        "CVE",
+        "DEMANDA EXTRAORDINARIA",
+        "ONCO MS",
+        "RV - MEDICAMENTOS - HEMO REDE",
+        "RV - MEDICAMENTOS - CRATOD",
+        "RV - MEDICAMENTOS - CRT/AIDS",
+        "COVID-19"
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CarregarUltimosJobs();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            timer = new Timer(async _ =>
+            {
+                await AtualizarProgresso();
+                await InvokeAsync(StateHasChanged);
+            }, null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+        }
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        mensagemErro = null;
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ms.Position = 0;
+            documentos = ExcelReader.LerDocumentos(ms);
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao ler planilha: {ex.Message}";
+            documentos.Clear();
+        }
+    }
+
+    private async Task Executar()
+    {
+        mensagemErro = null;
+        mensagemSucesso = null;
+
+        if (string.IsNullOrWhiteSpace(usuario) || string.IsNullOrWhiteSpace(senhaGsnet))
+        {
+            mensagemErro = "Preencha usuario e senha do GSNet.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(programaSaude))
+        {
+            mensagemErro = "Selecione um programa de saude.";
+            return;
+        }
+        if (documentos.Count == 0)
+        {
+            mensagemErro = "Carregue uma planilha Excel com documentos.";
+            return;
+        }
+
+        executando = true;
+
+        using var db = await DbFactory.CreateDbContextAsync();
+        var job = new AutomationJob
+        {
+            OperationType = operacao,
+            ProgramaSaude = programaSaude,
+            TotalDocumentos = documentos.Count,
+            Status = JobStatus.Pendente
+        };
+
+        db.Jobs.Add(job);
+        await db.SaveChangesAsync();
+
+        jobAtivo = job;
+
+        await JobQueue.EnfileirarAsync(new JobRequest
+        {
+            JobId = job.Id,
+            Usuario = usuario,
+            Senha = senhaGsnet,
+            Documentos = new List<string>(documentos),
+            Operacao = operacao,
+            ProgramaSaude = programaSaude
+        });
+
+        mensagemSucesso = $"Job #{job.Id} enfileirado com {documentos.Count} documentos.";
+        executando = false;
+
+        await CarregarUltimosJobs();
+    }
+
+    private async Task AtualizarProgresso()
+    {
+        try
+        {
+            if (jobAtivo != null)
+            {
+                using var db = await DbFactory.CreateDbContextAsync();
+                var atualizado = await db.Jobs.AsNoTracking().FirstOrDefaultAsync(j => j.Id == jobAtivo.Id);
+                if (atualizado != null)
+                {
+                    jobAtivo = atualizado;
+                    if (jobAtivo.Status == JobStatus.Concluido || jobAtivo.Status == JobStatus.Erro)
+                    {
+                        await CarregarUltimosJobs();
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private async Task CarregarUltimosJobs()
+    {
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            ultimosJobs = await db.Jobs.AsNoTracking()
+                .OrderByDescending(j => j.DataCriacao)
+                .Take(10)
+                .ToListAsync();
+        }
+        catch { }
+    }
+
+    private int Progresso()
+    {
+        if (jobAtivo == null || jobAtivo.TotalDocumentos == 0) return 0;
+        return (int)((double)jobAtivo.DocumentosProcessados / jobAtivo.TotalDocumentos * 100);
+    }
+
+    private string NomeOperacao(OperationType op) => op switch
+    {
+        OperationType.Efetivar => "Efetivar",
+        OperationType.Reservar => "Reservar",
+        OperationType.EfetivarReservados => "Efetivar Reservados",
+        OperationType.Deletar => "Deletar",
+        OperationType.Desaprovar => "Desaprovar",
+        _ => op.ToString()
+    };
+
+    private string BadgeClass(JobStatus status) => status switch
+    {
+        JobStatus.Pendente => "bg-secondary",
+        JobStatus.Executando => "bg-primary",
+        JobStatus.Concluido => "bg-success",
+        JobStatus.Erro => "bg-danger",
+        _ => "bg-secondary"
+    };
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+    }
+}

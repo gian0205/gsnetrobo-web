@@ -1,0 +1,150 @@
+@page "/historico"
+@using GsNetRobo.Data
+@using GsNetRobo.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+@rendermode InteractiveServer
+
+<PageTitle>Historico de Operacoes</PageTitle>
+
+<h3 class="mb-4">Historico de Operacoes</h3>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-striped table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Data</th>
+                    <th>Operacao</th>
+                    <th>Programa</th>
+                    <th>Status</th>
+                    <th>Progresso</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var job in jobs)
+                {
+                    <tr>
+                        <td>@job.Id</td>
+                        <td>@job.DataCriacao.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@NomeOperacao(job.OperationType)</td>
+                        <td>@job.ProgramaSaude</td>
+                        <td><span class="badge @BadgeClass(job.Status)">@job.Status</span></td>
+                        <td>@job.DocumentosProcessados / @job.TotalDocumentos</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => ToggleDetalhes(job.Id)">
+                                @(jobDetalheAberto == job.Id ? "Fechar" : "Detalhes")
+                            </button>
+                        </td>
+                    </tr>
+                    @if (jobDetalheAberto == job.Id)
+                    {
+                        <tr>
+                            <td colspan="7" class="p-0">
+                                <div class="bg-light p-3">
+                                    @if (job.Erro != null)
+                                    {
+                                        <div class="alert alert-danger mb-2">
+                                            <strong>Erro geral:</strong> @job.Erro
+                                        </div>
+                                    }
+                                    <table class="table table-sm table-bordered mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Documento</th>
+                                                <th>Resultado</th>
+                                                <th>Erro</th>
+                                                <th>Data</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var d in detalhes)
+                                            {
+                                                <tr class="@(d.Sucesso ? "" : "table-danger")">
+                                                    <td>@d.NumeroDocumento</td>
+                                                    <td>
+                                                        @if (d.Sucesso)
+                                                        {
+                                                            <span class="text-success">OK</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-danger">Erro</span>
+                                                        }
+                                                    </td>
+                                                    <td>@(d.MensagemErro ?? "-")</td>
+                                                    <td>@d.DataProcessamento.ToString("HH:mm:ss")</td>
+                                                </tr>
+                                            }
+                                            @if (detalhes.Count == 0)
+                                            {
+                                                <tr><td colspan="4" class="text-center text-muted">Nenhum detalhe disponivel</td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                @if (jobs.Count == 0)
+                {
+                    <tr><td colspan="7" class="text-center text-muted p-4">Nenhuma operacao registrada</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<AutomationJob> jobs = new();
+    private List<JobDetail> detalhes = new();
+    private int? jobDetalheAberto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+        jobs = await db.Jobs.AsNoTracking()
+            .OrderByDescending(j => j.DataCriacao)
+            .ToListAsync();
+    }
+
+    private async Task ToggleDetalhes(int jobId)
+    {
+        if (jobDetalheAberto == jobId)
+        {
+            jobDetalheAberto = null;
+            detalhes.Clear();
+            return;
+        }
+
+        using var db = await DbFactory.CreateDbContextAsync();
+        detalhes = await db.JobDetails.AsNoTracking()
+            .Where(d => d.AutomationJobId == jobId)
+            .OrderBy(d => d.DataProcessamento)
+            .ToListAsync();
+
+        jobDetalheAberto = jobId;
+    }
+
+    private string NomeOperacao(OperationType op) => op switch
+    {
+        OperationType.Efetivar => "Efetivar",
+        OperationType.Reservar => "Reservar",
+        OperationType.EfetivarReservados => "Efetivar Reservados",
+        OperationType.Deletar => "Deletar",
+        OperationType.Desaprovar => "Desaprovar",
+        _ => op.ToString()
+    };
+
+    private string BadgeClass(JobStatus status) => status switch
+    {
+        JobStatus.Pendente => "bg-secondary",
+        JobStatus.Executando => "bg-primary",
+        JobStatus.Concluido => "bg-success",
+        JobStatus.Erro => "bg-danger",
+        _ => "bg-secondary"
+    };
+}
