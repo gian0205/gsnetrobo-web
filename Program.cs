@@ -1,5 +1,6 @@
 using GsNetRobo.Components;
 using GsNetRobo.Data;
+using GsNetRobo.Models;
 using GsNetRobo.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -26,6 +27,24 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    // Adiciona coluna Gestor para bancos de dados existentes
+    try { db.Database.ExecuteSqlRaw("ALTER TABLE Jobs ADD COLUMN Gestor TEXT NOT NULL DEFAULT ''"); } catch { }
+    // Cria tabela ProgramasSaude para bancos de dados existentes
+    try { db.Database.ExecuteSqlRaw("CREATE TABLE IF NOT EXISTS ProgramasSaude (Id INTEGER PRIMARY KEY AUTOINCREMENT, Nome TEXT NOT NULL, Ativo INTEGER NOT NULL DEFAULT 1)"); } catch { }
+    // Seed programas padrão se tabela estiver vazia
+    if (!db.ProgramasSaude.Any())
+    {
+        var defaults = new[]
+        {
+            "CEAF - RE", "CEBAF - DOSE CERTA", "CEBAF - SAÚDE DA MULHER",
+            "CEBAF - OUTROS", "CESAF ", "CVE", "DEMANDA EXTRAORDINARIA",
+            "ONCO MS", "RV - MEDICAMENTOS - HEMO REDE",
+            "RV - MEDICAMENTOS - CRATOD", "RV - MEDICAMENTOS - CRT/AIDS", "COVID-19"
+        };
+        foreach (var nome in defaults)
+            db.ProgramasSaude.Add(new ProgramaSaudeItem { Nome = nome });
+        db.SaveChanges();
+    }
 }
 
 if (!app.Environment.IsDevelopment())

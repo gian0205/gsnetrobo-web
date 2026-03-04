@@ -10,6 +10,7 @@ public class JobRequest
     public List<string> Documentos { get; set; } = new();
     public Models.OperationType Operacao { get; set; }
     public string ProgramaSaude { get; set; } = string.Empty;
+    public string Gestor { get; set; } = string.Empty;
 }
 
 public class JobQueueService : BackgroundService

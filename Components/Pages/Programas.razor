@@ -1,0 +1,176 @@
+@page "/programas"
+@using GsNetRobo.Data
+@using GsNetRobo.Models
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+@rendermode InteractiveServer
+
+<PageTitle>Programas de Saude</PageTitle>
+
+<h3 class="mb-4">Programas de Saude</h3>
+
+<div class="row">
+    <div class="col-md-5">
+        <div class="card mb-4">
+            <div class="card-header"><strong>@(editando != null ? "Editar Programa" : "Novo Programa")</strong></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome do Programa</label>
+                    <input type="text" class="form-control" @bind="nomeInput" placeholder="Ex: CEAF - RE" />
+                </div>
+                @if (!string.IsNullOrEmpty(mensagemErro))
+                {
+                    <div class="alert alert-danger py-2">@mensagemErro</div>
+                }
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary" @onclick="Salvar">
+                        @(editando != null ? "Salvar Alteracao" : "Adicionar")
+                    </button>
+                    @if (editando != null)
+                    {
+                        <button class="btn btn-outline-secondary" @onclick="CancelarEdicao">Cancelar</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header"><strong>Programas Cadastrados (@programas.Count)</strong></div>
+            <div class="card-body p-0">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>#</th>
+                            <th>Nome</th>
+                            <th>Status</th>
+                            <th>Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in programas)
+                        {
+                            <tr class="@(p.Ativo ? "" : "text-muted")">
+                                <td>@p.Id</td>
+                                <td>@p.Nome</td>
+                                <td>
+                                    @if (p.Ativo)
+                                    {
+                                        <span class="badge bg-success">Ativo</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inativo</span>
+                                    }
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary me-1" @onclick="() => IniciarEdicao(p)">
+                                        Editar
+                                    </button>
+                                    <button class="btn btn-sm @(p.Ativo ? "btn-outline-warning" : "btn-outline-success")"
+                                            @onclick="() => AlternarAtivo(p)">
+                                        @(p.Ativo ? "Desativar" : "Ativar")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (programas.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-center text-muted p-3">Nenhum programa cadastrado</td></tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(mensagemSucesso))
+{
+    <div class="alert alert-success mt-3">@mensagemSucesso</div>
+}
+
+@code {
+    private List<ProgramaSaudeItem> programas = new();
+    private ProgramaSaudeItem? editando;
+    private string nomeInput = string.Empty;
+    private string? mensagemErro;
+    private string? mensagemSucesso;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Carregar();
+    }
+
+    private async Task Carregar()
+    {
+        using var db = await DbFactory.CreateDbContextAsync();
+        programas = await db.ProgramasSaude.AsNoTracking()
+            .OrderBy(p => p.Nome)
+            .ToListAsync();
+    }
+
+    private void IniciarEdicao(ProgramaSaudeItem p)
+    {
+        editando = p;
+        nomeInput = p.Nome;
+        mensagemErro = null;
+        mensagemSucesso = null;
+    }
+
+    private void CancelarEdicao()
+    {
+        editando = null;
+        nomeInput = string.Empty;
+        mensagemErro = null;
+    }
+
+    private async Task Salvar()
+    {
+        mensagemErro = null;
+        mensagemSucesso = null;
+
+        if (string.IsNullOrWhiteSpace(nomeInput))
+        {
+            mensagemErro = "Informe o nome do programa.";
+            return;
+        }
+
+        using var db = await DbFactory.CreateDbContextAsync();
+
+        if (editando != null)
+        {
+            var item = await db.ProgramasSaude.FindAsync(editando.Id);
+            if (item != null)
+            {
+                item.Nome = nomeInput.Trim();
+                await db.SaveChangesAsync();
+                mensagemSucesso = "Programa alterado com sucesso.";
+            }
+            editando = null;
+        }
+        else
+        {
+            db.ProgramasSaude.Add(new ProgramaSaudeItem { Nome = nomeInput.Trim() });
+            await db.SaveChangesAsync();
+            mensagemSucesso = "Programa adicionado com sucesso.";
+        }
+
+        nomeInput = string.Empty;
+        await Carregar();
+    }
+
+    private async Task AlternarAtivo(ProgramaSaudeItem p)
+    {
+        mensagemSucesso = null;
+        using var db = await DbFactory.CreateDbContextAsync();
+        var item = await db.ProgramasSaude.FindAsync(p.Id);
+        if (item != null)
+        {
+            item.Ativo = !item.Ativo;
+            await db.SaveChangesAsync();
+        }
+        await Carregar();
+    }
+}

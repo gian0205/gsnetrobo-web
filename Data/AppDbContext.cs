@@ -9,6 +9,7 @@ public class AppDbContext : DbContext
 
     public DbSet<AutomationJob> Jobs => Set<AutomationJob>();
     public DbSet<JobDetail> JobDetails => Set<JobDetail>();
+    public DbSet<ProgramaSaudeItem> ProgramasSaude => Set<ProgramaSaudeItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

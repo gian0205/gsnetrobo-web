@@ -5,6 +5,7 @@ public class AutomationJob
     public int Id { get; set; }
     public OperationType OperationType { get; set; }
     public string ProgramaSaude { get; set; } = string.Empty;
+    public string Gestor { get; set; } = string.Empty;
     public DateTime DataCriacao { get; set; } = DateTime.Now;
     public JobStatus Status { get; set; } = JobStatus.Pendente;
     public int TotalDocumentos { get; set; }

@@ -14,74 +14,110 @@
 <h3 class="mb-4">Automacao GSNet</h3>
 
 <div class="row">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <strong>Nova Operacao</strong>
-            </div>
+    <div class="col-md-7">
+
+        <!-- Credenciais -->
+        <div class="card mb-3">
+            <div class="card-header"><strong>Credenciais GSNet</strong></div>
             <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label">Usuario GSNet</label>
-                    <input type="text" class="form-control" @bind="usuario" />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Usuario</label>
+                        <input type="text" class="form-control" @bind="usuario" placeholder="Usuario GSNet" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Senha</label>
+                        <input type="password" class="form-control" @bind="senhaGsnet" placeholder="Senha GSNet" />
+                    </div>
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Senha GSNet</label>
-                    <input type="password" class="form-control" @bind="senhaGsnet" />
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Programa de Saude</label>
-                    <select class="form-select" @bind="programaSaude">
-                        <option value="">-- Selecione --</option>
-                        @foreach (var p in programas)
-                        {
-                            <option value="@p">@p</option>
-                        }
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Tipo de Operacao</label>
-                    <select class="form-select" @bind="operacao">
-                        @foreach (OperationType op in Enum.GetValues<OperationType>())
-                        {
-                            <option value="@op">@NomeOperacao(op)</option>
-                        }
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Planilha Excel (coluna A = numeros dos documentos)</label>
-                    <InputFile class="form-control" OnChange="OnFileSelected" accept=".xlsx,.xls" />
-                    @if (documentos.Count > 0)
-                    {
-                        <small class="text-muted">@documentos.Count documento(s) encontrado(s)</small>
-                    }
-                </div>
-
-                @if (!string.IsNullOrEmpty(mensagemErro))
-                {
-                    <div class="alert alert-danger">@mensagemErro</div>
-                }
-
-                <button class="btn btn-primary w-100" @onclick="Executar" disabled="@executando">
-                    @if (executando)
-                    {
-                        <span class="spinner-border spinner-border-sm me-1"></span>
-                        <span>Enviando...</span>
-                    }
-                    else
-                    {
-                        <span>Executar</span>
-                    }
-                </button>
-
-                @if (mensagemSucesso != null)
-                {
-                    <div class="alert alert-success mt-3">@mensagemSucesso</div>
-                }
             </div>
         </div>
+
+        <!-- Lotes -->
+        @for (int i = 0; i < lotes.Count; i++)
+        {
+            var idx = i;
+            var lote = lotes[i];
+            <div class="card mb-3 border-primary">
+                <div class="card-header d-flex justify-content-between align-items-center bg-primary bg-opacity-10">
+                    <strong>Lote @(i + 1)</strong>
+                    @if (lotes.Count > 1)
+                    {
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoverLote(idx)">
+                            &times; Remover
+                        </button>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Programa de Saude</label>
+                            <select class="form-select" @bind="lote.ProgramaSaude">
+                                <option value="">-- Selecione --</option>
+                                @foreach (var p in programas)
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tipo de Operacao</label>
+                            <select class="form-select" @bind="lote.Operacao">
+                                @foreach (OperationType op in Enum.GetValues<OperationType>())
+                                {
+                                    <option value="@op">@NomeOperacao(op)</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-1">
+                        <label class="form-label">Planilha Excel (coluna A = numeros dos documentos)</label>
+                        <InputFile class="form-control" OnChange="(e) => OnFileSelectedForLote(e, lote)" accept=".xlsx,.xls" />
+                    </div>
+                    @if (lote.Documentos.Count > 0)
+                    {
+                        <small class="text-success">
+                            <strong>@lote.Documentos.Count</strong> documento(s) carregado(s) &mdash; @lote.NomeArquivo
+                        </small>
+                    }
+                    @if (!string.IsNullOrEmpty(lote.ErroArquivo))
+                    {
+                        <small class="text-danger">@lote.ErroArquivo</small>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="mb-3">
+            <button class="btn btn-outline-secondary" @onclick="AdicionarLote">
+                + Adicionar Lote
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensagemErro))
+        {
+            <div class="alert alert-danger">@mensagemErro</div>
+        }
+
+        <button class="btn btn-primary w-100" @onclick="Executar" disabled="@executando">
+            @if (executando)
+            {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                <span>Enviando...</span>
+            }
+            else
+            {
+                <span>Executar @(lotes.Count > 1 ? $"{lotes.Count} Lotes" : "Lote")</span>
+            }
+        </button>
+
+        @if (mensagemSucesso != null)
+        {
+            <div class="alert alert-success mt-3">@mensagemSucesso</div>
+        }
     </div>
 
-    <div class="col-md-6">
+    <div class="col-md-5">
         @if (jobAtivo != null)
         {
             <div class="card mb-3">
@@ -91,6 +127,10 @@
                 <div class="card-body">
                     <p><strong>Operacao:</strong> @NomeOperacao(jobAtivo.OperationType)</p>
                     <p><strong>Programa:</strong> @jobAtivo.ProgramaSaude</p>
+                    @if (!string.IsNullOrEmpty(jobAtivo.Gestor))
+                    {
+                        <p><strong>Gestor:</strong> @jobAtivo.Gestor</p>
+                    }
                     <p><strong>Status:</strong>
                         <span class="badge @BadgeClass(jobAtivo.Status)">@jobAtivo.Status</span>
                     </p>
@@ -147,11 +187,19 @@
 </div>
 
 @code {
+    private class LoteConfig
+    {
+        public string Gestor { get; set; } = string.Empty;
+        public string ProgramaSaude { get; set; } = string.Empty;
+        public OperationType Operacao { get; set; } = OperationType.Efetivar;
+        public List<string> Documentos { get; set; } = new();
+        public string? NomeArquivo { get; set; }
+        public string? ErroArquivo { get; set; }
+    }
+
+    private List<LoteConfig> lotes = [new LoteConfig()];
     private string usuario = string.Empty;
     private string senhaGsnet = string.Empty;
-    private string programaSaude = string.Empty;
-    private OperationType operacao = OperationType.Efetivar;
-    private List<string> documentos = new();
     private bool executando;
     private string? mensagemErro;
     private string? mensagemSucesso;
@@ -159,25 +207,26 @@
     private List<AutomationJob> ultimosJobs = new();
     private Timer? timer;
 
-    private readonly string[] programas =
-    [
-        "CEAF - RE",
-        "CEBAF - DOSE CERTA",
-        "CEBAF - SAÚDE DA MULHER",
-        "CEBAF - OUTROS",
-        "CESAF ",
-        "CVE",
-        "DEMANDA EXTRAORDINARIA",
-        "ONCO MS",
-        "RV - MEDICAMENTOS - HEMO REDE",
-        "RV - MEDICAMENTOS - CRATOD",
-        "RV - MEDICAMENTOS - CRT/AIDS",
-        "COVID-19"
-    ];
+    private List<string> programas = new();
 
     protected override async Task OnInitializedAsync()
     {
+        await CarregarProgramas();
         await CarregarUltimosJobs();
+    }
+
+    private async Task CarregarProgramas()
+    {
+        try
+        {
+            using var db = await DbFactory.CreateDbContextAsync();
+            programas = await db.ProgramasSaude.AsNoTracking()
+                .Where(p => p.Ativo)
+                .OrderBy(p => p.Nome)
+                .Select(p => p.Nome)
+                .ToListAsync();
+        }
+        catch { }
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -192,21 +241,31 @@
         }
     }
 
-    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    private void AdicionarLote() => lotes.Add(new LoteConfig());
+
+    private void RemoverLote(int idx)
     {
-        mensagemErro = null;
+        if (lotes.Count > 1)
+            lotes.RemoveAt(idx);
+    }
+
+    private async Task OnFileSelectedForLote(InputFileChangeEventArgs e, LoteConfig lote)
+    {
+        lote.ErroArquivo = null;
+        lote.Documentos.Clear();
+        lote.NomeArquivo = null;
         try
         {
             using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms);
             ms.Position = 0;
-            documentos = ExcelReader.LerDocumentos(ms);
+            lote.Documentos = ExcelReader.LerDocumentos(ms);
+            lote.NomeArquivo = e.File.Name;
         }
         catch (Exception ex)
         {
-            mensagemErro = $"Erro ao ler planilha: {ex.Message}";
-            documentos.Clear();
+            lote.ErroArquivo = $"Erro ao ler planilha: {ex.Message}";
         }
     }
 
@@ -220,44 +279,63 @@
             mensagemErro = "Preencha usuario e senha do GSNet.";
             return;
         }
-        if (string.IsNullOrWhiteSpace(programaSaude))
+
+        for (int i = 0; i < lotes.Count; i++)
         {
-            mensagemErro = "Selecione um programa de saude.";
-            return;
-        }
-        if (documentos.Count == 0)
-        {
-            mensagemErro = "Carregue uma planilha Excel com documentos.";
-            return;
+            var lote = lotes[i];
+            if (string.IsNullOrWhiteSpace(lote.Gestor))
+            {
+                mensagemErro = $"Lote {i + 1}: informe o Gestor.";
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(lote.ProgramaSaude))
+            {
+                mensagemErro = $"Lote {i + 1}: selecione o Programa de Saude.";
+                return;
+            }
+            if (lote.Documentos.Count == 0)
+            {
+                mensagemErro = $"Lote {i + 1}: carregue uma planilha Excel com documentos.";
+                return;
+            }
         }
 
         executando = true;
 
         using var db = await DbFactory.CreateDbContextAsync();
-        var job = new AutomationJob
+        var idsEnfileirados = new List<int>();
+
+        foreach (var lote in lotes)
         {
-            OperationType = operacao,
-            ProgramaSaude = programaSaude,
-            TotalDocumentos = documentos.Count,
-            Status = JobStatus.Pendente
-        };
+            var job = new AutomationJob
+            {
+                OperationType = lote.Operacao,
+                ProgramaSaude = lote.ProgramaSaude,
+                Gestor = lote.Gestor,
+                TotalDocumentos = lote.Documentos.Count,
+                Status = JobStatus.Pendente
+            };
 
-        db.Jobs.Add(job);
-        await db.SaveChangesAsync();
+            db.Jobs.Add(job);
+            await db.SaveChangesAsync();
 
-        jobAtivo = job;
+            idsEnfileirados.Add(job.Id);
+            jobAtivo = job;
 
-        await JobQueue.EnfileirarAsync(new JobRequest
-        {
-            JobId = job.Id,
-            Usuario = usuario,
-            Senha = senhaGsnet,
-            Documentos = new List<string>(documentos),
-            Operacao = operacao,
-            ProgramaSaude = programaSaude
-        });
+            await JobQueue.EnfileirarAsync(new JobRequest
+            {
+                JobId = job.Id,
+                Usuario = usuario,
+                Senha = senhaGsnet,
+                Documentos = new List<string>(lote.Documentos),
+                Operacao = lote.Operacao,
+                ProgramaSaude = lote.ProgramaSaude,
+                Gestor = lote.Gestor
+            });
+        }
 
-        mensagemSucesso = $"Job #{job.Id} enfileirado com {documentos.Count} documentos.";
+        var ids = string.Join(", #", idsEnfileirados);
+        mensagemSucesso = $"Jobs #{ids} enfileirados com sucesso!";
         executando = false;
 
         await CarregarUltimosJobs();
