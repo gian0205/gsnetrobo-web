@@ -2,6 +2,7 @@ using GsNetRobo.Components;
 using GsNetRobo.Data;
 using GsNetRobo.Models;
 using GsNetRobo.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Database
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Persiste chaves de Data Protection no volume montado (evita erro de antiforgery após restart)
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo("/app/data/keys"));
 
 // Services
 builder.Services.AddScoped<ExcelReaderService>();
