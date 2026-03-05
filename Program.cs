@@ -32,6 +32,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    // Habilita WAL mode para melhor concorrência em ambiente Docker
+    try { db.Database.ExecuteSqlRaw("PRAGMA journal_mode=WAL;"); } catch { }
     // Adiciona coluna Gestor para bancos de dados existentes
     try { db.Database.ExecuteSqlRaw("ALTER TABLE Jobs ADD COLUMN Gestor TEXT NOT NULL DEFAULT ''"); } catch { }
     // Cria tabela ProgramasSaude para bancos de dados existentes

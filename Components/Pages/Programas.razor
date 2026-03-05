@@ -137,40 +137,55 @@
             return;
         }
 
-        using var db = await DbFactory.CreateDbContextAsync();
-
-        if (editando != null)
+        try
         {
-            var item = await db.ProgramasSaude.FindAsync(editando.Id);
-            if (item != null)
+            using var db = await DbFactory.CreateDbContextAsync();
+
+            if (editando != null)
             {
-                item.Nome = nomeInput.Trim();
-                await db.SaveChangesAsync();
-                mensagemSucesso = "Programa alterado com sucesso.";
+                var item = await db.ProgramasSaude.FindAsync(editando.Id);
+                if (item != null)
+                {
+                    item.Nome = nomeInput.Trim();
+                    await db.SaveChangesAsync();
+                    mensagemSucesso = "Programa alterado com sucesso.";
+                }
+                editando = null;
             }
-            editando = null;
-        }
-        else
-        {
-            db.ProgramasSaude.Add(new ProgramaSaudeItem { Nome = nomeInput.Trim() });
-            await db.SaveChangesAsync();
-            mensagemSucesso = "Programa adicionado com sucesso.";
-        }
+            else
+            {
+                db.ProgramasSaude.Add(new ProgramaSaudeItem { Nome = nomeInput.Trim() });
+                await db.SaveChangesAsync();
+                mensagemSucesso = "Programa adicionado com sucesso.";
+            }
 
-        nomeInput = string.Empty;
-        await Carregar();
+            nomeInput = string.Empty;
+            await Carregar();
+        }
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao salvar: {ex.Message}";
+        }
     }
 
     private async Task AlternarAtivo(ProgramaSaudeItem p)
     {
+        mensagemErro = null;
         mensagemSucesso = null;
-        using var db = await DbFactory.CreateDbContextAsync();
-        var item = await db.ProgramasSaude.FindAsync(p.Id);
-        if (item != null)
+        try
         {
-            item.Ativo = !item.Ativo;
-            await db.SaveChangesAsync();
+            using var db = await DbFactory.CreateDbContextAsync();
+            var item = await db.ProgramasSaude.FindAsync(p.Id);
+            if (item != null)
+            {
+                item.Ativo = !item.Ativo;
+                await db.SaveChangesAsync();
+            }
+            await Carregar();
         }
-        await Carregar();
+        catch (Exception ex)
+        {
+            mensagemErro = $"Erro ao alterar status: {ex.Message}";
+        }
     }
 }
