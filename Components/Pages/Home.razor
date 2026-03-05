@@ -189,7 +189,6 @@
 @code {
     private class LoteConfig
     {
-        public string Gestor { get; set; } = string.Empty;
         public string ProgramaSaude { get; set; } = string.Empty;
         public OperationType Operacao { get; set; } = OperationType.Efetivar;
         public List<string> Documentos { get; set; } = new();
@@ -283,11 +282,6 @@
         for (int i = 0; i < lotes.Count; i++)
         {
             var lote = lotes[i];
-            if (string.IsNullOrWhiteSpace(lote.Gestor))
-            {
-                mensagemErro = $"Lote {i + 1}: informe o Gestor.";
-                return;
-            }
             if (string.IsNullOrWhiteSpace(lote.ProgramaSaude))
             {
                 mensagemErro = $"Lote {i + 1}: selecione o Programa de Saude.";
@@ -311,7 +305,6 @@
             {
                 OperationType = lote.Operacao,
                 ProgramaSaude = lote.ProgramaSaude,
-                Gestor = lote.Gestor,
                 TotalDocumentos = lote.Documentos.Count,
                 Status = JobStatus.Pendente
             };
@@ -329,8 +322,7 @@
                 Senha = senhaGsnet,
                 Documentos = new List<string>(lote.Documentos),
                 Operacao = lote.Operacao,
-                ProgramaSaude = lote.ProgramaSaude,
-                Gestor = lote.Gestor
+                ProgramaSaude = lote.ProgramaSaude
             });
         }
 

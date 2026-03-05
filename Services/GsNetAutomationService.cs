@@ -159,7 +159,12 @@ public class GsNetAutomationService
                 campoPesquisa.Clear();
                 campoPesquisa.SendKeys(fatura);
                 driver.FindElement(By.Id("ButtonPesquisar")).Click();
-                driver.FindElement(By.Id("DataGridPesquisa__ctl3_ImageButtonDetalhe")).Click();
+                // Aguarda a grid carregar e localiza o botão Detalhe pelo ID parcial (ctl dinâmico)
+                var wait = new WebDriverWait(driver, TimeSpan.FromSeconds(15));
+                var btnDetalhe = wait.Until(d =>
+                    d.FindElements(By.CssSelector("[id*='ImageButtonDetalhe']"))
+                     .FirstOrDefault(e => e.Displayed));
+                btnDetalhe!.Click();
                 var btnReprovar = driver.FindElement(By.Id("ButtonReprovar"));
                 btnReprovar.SendKeys(OpenQA.Selenium.Keys.Enter);
                 AceitarAlerta(driver);
