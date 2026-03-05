@@ -17,7 +17,7 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Nome do Programa</label>
-                    <input type="text" class="form-control" @bind="nomeInput" placeholder="Ex: CEAF - RE" />
+                    <input type="text" class="form-control" @bind="nomeInput" @bind:event="oninput" placeholder="Ex: CEAF - RE" />
                 </div>
                 @if (!string.IsNullOrEmpty(mensagemErro))
                 {
@@ -129,11 +129,13 @@
 
     private async Task Salvar()
     {
+        Logger.LogWarning("Salvar() chamado. nomeInput='{Nome}', editando={Editando}", nomeInput, editando?.Id);
         mensagemErro = null;
         mensagemSucesso = null;
 
         if (string.IsNullOrWhiteSpace(nomeInput))
         {
+            Logger.LogWarning("Salvar() abortado: nomeInput vazio");
             mensagemErro = "Informe o nome do programa.";
             return;
         }
