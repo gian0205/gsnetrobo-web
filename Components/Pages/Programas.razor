@@ -3,6 +3,7 @@
 @using GsNetRobo.Models
 @using Microsoft.EntityFrameworkCore
 @inject IDbContextFactory<AppDbContext> DbFactory
+@inject ILogger<Programas> Logger
 @rendermode InteractiveServer
 
 <PageTitle>Programas de Saude</PageTitle>
@@ -164,6 +165,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Erro ao salvar programa. nomeInput={Nome}", nomeInput);
             mensagemErro = $"Erro ao salvar: {ex.Message}";
         }
     }
@@ -185,6 +187,7 @@
         }
         catch (Exception ex)
         {
+            Logger.LogError(ex, "Erro ao alternar ativo para programa Id={Id}", p.Id);
             mensagemErro = $"Erro ao alterar status: {ex.Message}";
         }
     }
