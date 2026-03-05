@@ -21,6 +21,12 @@ builder.Services.AddScoped<GsNetAutomationService>();
 builder.Services.AddSingleton<JobQueueService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<JobQueueService>());
 
+// SignalR (erros detalhados para diagnóstico do circuit Blazor)
+builder.Services.AddSignalR(options =>
+{
+    options.EnableDetailedErrors = true;
+});
+
 // Blazor
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
