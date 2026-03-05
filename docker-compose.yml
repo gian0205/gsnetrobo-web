@@ -7,11 +7,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - gsnetrobo_data:/app/data
+      - /opt/gsnetrobo/data:/app/data
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/gsnetrobo.db
-
-volumes:
-  gsnetrobo_data:
