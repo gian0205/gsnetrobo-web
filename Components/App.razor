@@ -19,9 +19,7 @@
         Blazor.start({
             circuit: {
                 configureSignalR: function (builder) {
-                    builder.withUrl("/_blazor", {
-                        transport: signalR.HttpTransportType.LongPolling
-                    });
+                    builder.withUrl("/_blazor", { transport: 4 });
                 }
             }
         });

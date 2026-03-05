@@ -3,6 +3,7 @@ using GsNetRobo.Data;
 using GsNetRobo.Models;
 using GsNetRobo.Services;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -60,12 +61,20 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Necessário para funcionar atrás de reverse proxy (Coolify/Caddy/Traefik)
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }
-app.UseHttpsRedirection();
+
+// WebSockets para SignalR/Blazor circuit
+app.UseWebSockets();
 
 app.UseAntiforgery();
 
